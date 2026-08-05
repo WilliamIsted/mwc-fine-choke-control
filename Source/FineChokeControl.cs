@@ -29,6 +29,10 @@ namespace FineChokeControl
         private void OnLoad()
         {
             // Called once, when mod is loading after game is fully loaded
+
+#if DEBUG
+            FsmSpecCheck.Run();
+#endif
         }
 
         private void Update()
