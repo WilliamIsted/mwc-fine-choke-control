@@ -1,50 +1,96 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Visual Studio's fast up-to-date check runs before MSBuild and skips the
+       build when it thinks nothing changed — which would skip DeployToMods too,
+       leaving the game running against a stale DLL while VS reports success.
+       Only affects builds started inside VS; the CLI never uses that check. -->
+  <PropertyGroup Label="Globals">
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+  </PropertyGroup>
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>a80c1247-089f-4c7e-b30f-c82a948ec3a2</ProjectGuid>
+    <TargetFramework>net35</TargetFramework>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>FineChokeControl</RootNamespace>
-    <AssemblyName>FineChokeControl</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
+    <AssemblyName>MWCFineChokeControl</AssemblyName>
+    <!-- Matches the official MSCLoader template. Everything that is pure compiler
+         lowering works on net35; anything needing a post-3.5 BCL type fails loudly
+         at compile time (tuples want System.ValueTuple, and so on). -->
+    <LangVersion>13</LangVersion>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+
+  <!-- No pdb in Release, so a shipped mod is a single file. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+
+  <PropertyGroup>
+    <Product>Fine Choke Control</Product>
+    <Copyright>Copyright © 2026 William Isted</Copyright>
   </PropertyGroup>
+
+  <!-- Game paths come from user environment variables, which MSBuild surfaces as
+       properties automatically. Set them once per machine:
+         setx MWCManagedPath "...\My Winter Car\mywintercar_Data\Managed"
+         setx MyWinterCarModsPath "...\My Winter Car\Mods"
+       Either can be overridden per build: msbuild /p:MWCManagedPath="D:\..." -->
+  <PropertyGroup>
+    <MWCManagedPath Condition="'$(MWCManagedPath)' == ''">$([System.Environment]::GetEnvironmentVariable('MWCManagedPath'))</MWCManagedPath>
+    <MyWinterCarModsPath Condition="'$(MyWinterCarModsPath)' == ''">$([System.Environment]::GetEnvironmentVariable('MyWinterCarModsPath'))</MyWinterCarModsPath>
+  </PropertyGroup>
+
+  <!-- Game assemblies. Private=false keeps them out of bin\ — they already live
+       in the game's Managed folder, and shipping copies alongside the mod is how
+       you get assembly identity conflicts at load time. -->
   <ItemGroup>
-    <Reference Include="System"/>
-    
-    <Reference Include="System.Core"/>
-    <Reference Include="System.Xml.Linq"/>
-    <Reference Include="System.Data.DataSetExtensions"/>
-    
-    
-    <Reference Include="System.Data"/>
-    
-    <Reference Include="System.Xml"/>
+    <Reference Include="UnityEngine">
+      <HintPath>$(MWCManagedPath)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(MWCManagedPath)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MSCLoader">
+      <HintPath>$(MWCManagedPath)\MSCLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PlayMaker">
+      <HintPath>$(MWCManagedPath)\PlayMaker.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Class1.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
- </Project>
+
+  <Target Name="CheckGamePaths" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(MWCManagedPath)' == ''"
+           Text="MWCManagedPath is not set. Create it as a user environment variable pointing at My Winter Car's mywintercar_Data\Managed folder, then restart Visual Studio so it picks the variable up." />
+    <Error Condition="!Exists('$(MWCManagedPath)')"
+           Text="MWCManagedPath does not exist: $(MWCManagedPath)" />
+  </Target>
+
+  <Target Name="DeployToMods" AfterTargets="Build">
+    <Error Condition="'$(MyWinterCarModsPath)' == ''"
+           Text="MyWinterCarModsPath is not set. Create it as a user environment variable pointing at My Winter Car's Mods folder, then restart Visual Studio so it picks the variable up." />
+    <!-- Windows locks a loaded DLL, so the game has to go before the copy.
+         When the game is not running taskkill exits 128 AND writes "ERROR: The
+         process ... not found" to stderr. IgnoreExitCode covers the exit code;
+         IgnoreStandardErrorWarningFormat stops MSBuild parsing that stderr line
+         as a build error. Both are needed or every build from a closed game
+         fails. -->
+    <Message Importance="high" Text="Terminating My Winter Car" />
+    <Exec Command="taskkill /F /IM mywintercar.exe" IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true" />
+
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MyWinterCarModsPath)" SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) to $(MyWinterCarModsPath)" />
+
+    <!-- Relaunch, unless this is a plain compile check: msbuild /p:LaunchGame=false
+         Let the file handle settle before Steam starts reading the Mods folder.
+         ping is the sleep hack: timeout /t needs a real console and fails when
+         MSBuild redirects stdin. -n 2 is one second, not two. -->
+    <Exec Command="ping 127.0.0.1 -n 2 &gt; nul" Condition="'$(LaunchGame)' != 'false'" />
+
+    <Message Importance="high" Text="Launching My Winter Car" Condition="'$(LaunchGame)' != 'false'" />
+    <Exec Command="cmd /c start steam://rungameid/4164420" Condition="'$(LaunchGame)' != 'false'" />
+  </Target>
+
+</Project>
