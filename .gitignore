@@ -1,0 +1,7 @@
+*.sublime-project
+*.sublime-workspace
+.vs
+bin
+obj
+docfx/_site
+docfx/api
