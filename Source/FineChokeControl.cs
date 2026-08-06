@@ -8,12 +8,17 @@ namespace FineChokeControl
     public class FineChokeControl : Mod
     {
 
-        public override string ID => "FineChokeControl";
+        public override string ID => "MWCFineChokeControl";
         public override string Name => "Fine Choke Control";
         public override string Author => "WilliamIsted";
-        public override string Version => "0.0.1";
-        public override string Description => "Scroll-wheel fine adjustment for the Corris and Sorbet choke and the Gifu hand throttle.";
+        public override string Version => "1.0.0";
+        public override string Description => "Fine adjustment for the Corris and Sorbet choke and the Gifu hand throttle, by scroll wheel or keybind.";
         public override Game SupportedGames => Game.MyWinterCar;
+
+        // Scroll notches per second while a key is held, so the step setting drives both
+        // inputs. Ten notches a second is half the control's travel per second at the
+        // default 5%, which is what the MSC mod settled on.
+        private const float notchesPerSecond = 10f;
 
         private FsmVariables globalVars = null;
         private FsmBool guiUse = null;
@@ -65,6 +70,18 @@ namespace FineChokeControl
             DivergenceWatch.Poll();
 #endif
 
+            HandleScroll();
+            HandleKeys();
+
+        }
+
+        /// <summary>
+        /// Scroll wheel and its button, both of which require the player to be looking at
+        /// the control.
+        /// </summary>
+        private void HandleScroll()
+        {
+
             // Cheapest first. Both are plain input reads and both are idle on almost every
             // frame, which keeps the FSM reads and the scene lookup off the hot path.
             float scroll = Input.GetAxis("Mouse ScrollWheel");
@@ -75,7 +92,7 @@ namespace FineChokeControl
                 return;
             }
 
-            Control control = GetActiveControl();
+            Control control = GetLookedAtControl();
             if (control == null)
             {
                 return;
@@ -98,6 +115,45 @@ namespace FineChokeControl
             // Sign, not magnitude. One notch is one step whatever the player's wheel
             // reports, and how big that step is belongs to the setting.
             Apply(control, control.Value.Value + Travel(control) * Mathf.Sign(scroll));
+
+        }
+
+        /// <summary>
+        /// Keybinds, which only require being in the vehicle - the point of them is
+        /// adjusting the control while driving, with the dashboard out of view.
+        /// </summary>
+        private void HandleKeys()
+        {
+
+            bool increase = SettingsManager.increaseHeld;
+            bool decrease = SettingsManager.decreaseHeld;
+            bool toggle = SettingsManager.togglePressed;
+
+            if (!increase && !decrease && !toggle)
+            {
+                return;
+            }
+
+            Control control = GetVehicleControl();
+            if (control == null)
+            {
+                return;
+            }
+
+            if (toggle)
+            {
+                // Whichever end is further away, so a half-open choke closes rather than
+                // creeping to the nearer limit.
+                bool belowHalf = control.Fraction(control.Value.Value) < 0.5f;
+                Apply(control, belowHalf ? control.Max : control.Min);
+                return;
+            }
+
+            // Per second rather than per frame, so framerate does not change the feel.
+            float direction = (increase ? 1f : 0f) - (decrease ? 1f : 0f);
+            float step = Travel(control) * notchesPerSecond * Time.deltaTime * direction;
+
+            Apply(control, control.Value.Value + step);
 
         }
 
@@ -175,7 +231,7 @@ namespace FineChokeControl
         /// Returns the control the player is currently aimed at, or null when they are not
         /// aimed at one or it cannot be resolved yet.
         /// </summary>
-        private Control GetActiveControl()
+        private Control GetLookedAtControl()
         {
 
             if (guiUse == null || !guiUse.Value)
@@ -183,15 +239,34 @@ namespace FineChokeControl
                 return null;
             }
 
-            Control control;
-            if (!Definitions.Controls.TryGetValue(currentVehicle.Value, out control))
+            Control control = GetVehicleControl();
+            if (control == null)
             {
                 return null;
             }
 
             // Both chokes report "CHOKE", so the vehicle alone is not enough to know the
             // player is on the choke rather than some other control in the same cab.
-            if (guiInteraction.Value != control.Interaction)
+            return guiInteraction.Value == control.Interaction ? control : null;
+
+        }
+
+        /// <summary>
+        /// Returns the control belonging to the vehicle the player is sitting in, bound and
+        /// ready, or null when there is none.
+        /// </summary>
+        // No interaction check here: the keybinds exist to adjust the control while looking
+        // at the road.
+        private Control GetVehicleControl()
+        {
+
+            if (currentVehicle == null)
+            {
+                return null;
+            }
+
+            Control control;
+            if (!Definitions.Controls.TryGetValue(currentVehicle.Value, out control))
             {
                 return null;
             }
