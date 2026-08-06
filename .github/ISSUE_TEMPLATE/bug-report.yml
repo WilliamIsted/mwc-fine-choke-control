@@ -1,0 +1,65 @@
+name: Bug report
+description: Something broken in the mod
+title: "Short description"
+labels: [bug]
+body:
+  - type: dropdown
+    id: vehicle
+    attributes:
+      label: Vehicle
+      options:
+        - Corris
+        - Sorbet
+        - Gifu
+        - More than one
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: Input used
+      options:
+        - Scroll wheel
+        - Scroll wheel button
+        - Keybinds
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: mod-version
+    attributes:
+      label: Mod version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: mscloader-version
+    attributes:
+      label: MSCLoader version
+      placeholder: "1.4.2"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sit in the Corris
+        2. Look at the choke and scroll up
+        3. ...
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >-
+        Paste any lines mentioning FineChokeControl from the mod console.
+        ⚠️ Take care with `output_log.txt`: it contains the line starting
+        `MSCLoader: Hello <your Steam name>`, which can identify you. Remove that
+        line before attaching it.

@@ -1,0 +1,22 @@
+name: Feature request
+description: An idea for the mod
+title: "Short description"
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the mod do, and when would you use it?
+    validations:
+      required: true
+  - type: dropdown
+    id: vehicle
+    attributes:
+      label: Vehicle
+      options:
+        - Corris
+        - Sorbet
+        - Gifu
+        - All of them
+        - A vehicle the mod does not cover yet

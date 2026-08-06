@@ -4,6 +4,10 @@ This mod adds fine control over the Corris and Sorbet choke, and the Gifu hand t
 
 Use the scroll wheel button to fully close / open in a click. Or set keybinds to control them without hovering over them.
 
+## Installing
+
+Drop `MWCFineChokeControl.dll` into your game's `Mods` folder (requires [MSCLoader](https://github.com/piotrulos/MSCLoader)).
+
 ## Controls
 
 | Vehicle | Control |
