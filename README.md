@@ -2,7 +2,7 @@
 
 This mod adds fine control over the Corris and Sorbet choke, and the Gifu hand throttle, via the scroll wheel.
 
-Scroll while looking at the control to set it exactly where you want, instead of holding the mouse and watching it ramp past. Click the scroll wheel to go fully open or fully closed in one click. Or set keybinds to adjust it without looking at all, so the choke can be leaned out while you are driving.
+Use the scroll wheel button to fully close / open in a click. Or set keybinds to control them without hovering over them.
 
 ## Controls
 
@@ -24,6 +24,10 @@ Bindable keys work anywhere in the vehicle, without needing to look at the contr
 
 Rebind them in the MSCLoader keybind panel. The step size setting applies to held keys as well as the scroll wheel.
 
+![The choke in the Corris and Sorbet, and the hand throttle in the Gifu](Resources/Images/nexus-shots.jpg "Controls")
+
 ## Settings
 
-Adjust step size, invert the scroll wheel direction, and turn the on-screen percentage readout on or off, via the MSCLoader settings panel.
+Update sensitivity, invert scrolling and toggle the adjustment percentage via the MSCLoader settings panel.
+
+![The settings and keybinds panels](Resources/Images/nexus-settings.jpg "Settings")
